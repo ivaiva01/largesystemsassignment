@@ -1,3 +1,5 @@
+using service;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -16,6 +18,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// The project can access this from everywhere.
+builder.Services.AddSingleton<SearchingService>();
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
