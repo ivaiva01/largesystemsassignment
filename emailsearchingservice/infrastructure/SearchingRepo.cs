@@ -19,9 +19,9 @@ public class SearchingRepo
             arguments: null);
 
         string message = "Get all emails, with the search term: " + searchTerm;
-        TestObj testObj = new TestObj
+        SearchTermDto testObj = new SearchTermDto
         {
-            Text = "My test object"
+            SearchTermText = "My test object"
         };
         // Create a composite object (message + TestObj) to send
         var combinedMessage = new
@@ -39,7 +39,8 @@ public class SearchingRepo
     }
 }
 
-public class TestObj
+public class SearchTermDto
 {
-    public string? Text { get; set; }
+    public string? SearchTermText { get; set; }
 }
+
