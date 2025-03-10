@@ -17,15 +17,15 @@ public class EmailSearchingController : ControllerBase
     
     [HttpGet]
     [Route("/getEmailSearch/{searchTerm}")]
-    public ResponseDto GetEmailSearch(string searchTerm)
+    public async Task<ResponseDto> GetEmailSearch(string searchTerm)
     {
         List<Email> allLayerElements;
-        allLayerElements = _searchingService.GetEmailsWithSerarchterm(searchTerm);
+        allLayerElements = await _searchingService.GetEmailsWithSerarchterm(searchTerm);
 
         return new ResponseDto
         {
             MessageToClient = "All email with matching results",
-            ResponseData = null
+            ResponseData = allLayerElements
         };
     }
 

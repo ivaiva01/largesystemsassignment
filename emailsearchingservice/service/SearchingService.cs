@@ -1,13 +1,18 @@
 ﻿using api.models;
+using infrastructure;
 
 namespace service;
 
 public class SearchingService
 {
-    public List<Email> GetEmailsWithSerarchterm(string searchTerm)
+    private SearchingRepo _searchingRepo;
+
+    public SearchingService(SearchingRepo searchingRepo)
     {
-        //Contact the databaseservice using RabbitMQ
-        
-        return new List<Email>();
+        _searchingRepo = searchingRepo;
+    }
+    public async Task<List<Email>> GetEmailsWithSerarchterm(string searchTerm)
+    {
+        return await _searchingRepo.GetEmailsWithSerarchterm(searchTerm);
     }
 }
