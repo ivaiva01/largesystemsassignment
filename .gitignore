@@ -74,3 +74,5 @@ Thumbs.db
 UserInterfaceState.xcuserstate
 
 # End of https://www.toptal.com/developers/gitignore/api/dotnetcore,angular,ionic3
+
+dbservice/EnvironmentVariables.txt
