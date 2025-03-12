@@ -13,7 +13,7 @@ public class CleanerRepository
         _directoryPath = directoryPath;
     }
     
-    public List<string> GetTxtFiles()
+    public List<string> GetFiles()
     {
         if (!Directory.Exists(_directoryPath))
         {
@@ -21,18 +21,18 @@ public class CleanerRepository
             return new List<string>();
         }
 
-        return new List<string>(Directory.GetFiles(_directoryPath, "*.txt"));
+        return new List<string>(Directory.GetFiles(_directoryPath));
     }
     
-    public void SaveExtractedEmails(string outputFilePath, List<string> emails)
+    public void SaveExtractedEmails(string outputFilePath, List<string> bodies)
     {
         try
         {
             using (StreamWriter writer = new StreamWriter(outputFilePath))
             {
-                foreach (string email in emails)
+                foreach (string body in bodies)
                 {
-                    writer.WriteLine(email);
+                    writer.WriteLine(body);
                 }
             }
             Console.WriteLine($"Emails saved to: {outputFilePath}");

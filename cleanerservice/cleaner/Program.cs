@@ -9,36 +9,28 @@ class Program
 {
     static void Main()
     {
-        string directoryPath = @"D:\Web Development\EASV\enron_mail_20150507\maildir\allen-p\_sent_mail";
-        string outputFilePath = @"D:\Web Development\EASV\extracted_emails.txt";
+        string directoryPath = @"D:\\Web Development\\EASV\\enron_mail_20150507\\maildir\\allen-p\\_sent_mail";
+        string outputFilePath = @"D:\\Web Development\\EASV\\extracted_email_bodies.txt";
         
         CleanerRepository cleanerRepository = new CleanerRepository(directoryPath);
         CleanerService cleanerService = new CleanerService();
-        
-        List<string> files = cleanerRepository.GetTxtFiles();
-        List<string> allExtractedEmails = new List<string>();
+        List<string> files = cleanerRepository.GetFiles();
+        List<string> allExtractedBodies = new List<string>();
 
         foreach (var file in files)
         {
             Console.WriteLine($"Processing file: {file}");
-            List<CleanedEmail> emails = cleanerService.ExtractEmails(file);
-
-            foreach (var email in emails)
+            string fileContent = File.ReadAllText(file);
+            string body = cleanerService.ExtractBody(fileContent);
+            
+            if (!string.IsNullOrWhiteSpace(body))
             {
-                Console.WriteLine($"Extracted: {email.EmailBody}");
-                allExtractedEmails.Add(email.EmailBody);
-                
+                Console.WriteLine($"Extracted body: {body}");
+                allExtractedBodies.Add(body);
             }
         }
 
-        using (StreamWriter writer = new StreamWriter(outputFilePath))
-        {
-            foreach (string email in allExtractedEmails)
-            {
-                writer.WriteLine(email);
-            }
-        }
-        
-        Console.WriteLine("Extracted emails have been cleaned! Emails saved to: {outputFilePath}");
+        cleanerRepository.SaveExtractedEmails(outputFilePath, allExtractedBodies);
+        Console.WriteLine($"Extraction complete! Bodies saved to: {outputFilePath}");
     }
 }

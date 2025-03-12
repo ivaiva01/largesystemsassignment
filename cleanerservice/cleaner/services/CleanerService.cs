@@ -1,58 +1,26 @@
-﻿using System.IO;
-using System;
-using System.Text.RegularExpressions;
-using cleaner.models;
-
-namespace cleaner.services;
-
-public class CleanerService
+﻿namespace cleaner.services
 {
-    public List<CleanedEmail> ExtractEmails(string filePath)
+    public class CleanerService
     {
-        List<CleanedEmail> extractedEmails = new List<CleanedEmail>();
-
-        if (!File.Exists(filePath))
+        public string ExtractBody(string fileContent)
         {
-            Console.WriteLine($"File not found: {filePath}");
-            return extractedEmails;
-        }
-
-        using (StreamReader sr = new StreamReader(filePath))
-        {
-            string line;
-            bool isBody = true;
+            string[] lines = fileContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            bool isBody = false;
             string emailBody = "";
-            string header = "";
 
-            while ((line = sr.ReadLine()) != null)
+            foreach (string line in lines)
             {
                 if (string.IsNullOrWhiteSpace(line))
                 {
                     isBody = true;
                     continue;
                 }
-
                 if (isBody)
+                {
                     emailBody += line + "\n";
-                else
-                    header += line + "\n";
+                }
             }
-
-            RawEmailFile emailFile = new RawEmailFile
-            {
-                Header = header.Trim(),
-                Body = emailBody.Trim()
-            };
-            
-            string emailPattern = @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
-            MatchCollection matches = Regex.Matches(emailFile.Body, emailPattern);
-
-            foreach (Match match in matches)
-            {
-                extractedEmails.Add(new CleanedEmail { EmailBody = match.Value });
-            }
-                
+            return emailBody.Trim();
         }
-        return extractedEmails;
     }
 }
