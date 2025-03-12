@@ -10,7 +10,10 @@ string? _connectionString = Environment.GetEnvironmentVariable(EnvironmentVariab
 Console.WriteLine(_connectionString);
 var databaseRepo = new DatabaseRepo(_connectionString);
 //databaseRepo.AddWord("Hello");
-databaseRepo.AddWord("Niceer");
+if (!databaseRepo.DoesWordExist("Amazing"))
+{
+    databaseRepo.AddWord("Amazing");
+}
 
 IEnumerable<Word> words = databaseRepo.GetAllWords(); // Call the method to fetch words
 
