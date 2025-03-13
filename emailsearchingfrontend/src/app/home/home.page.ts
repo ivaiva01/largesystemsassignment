@@ -24,19 +24,14 @@ export class HomePage {
     console.log(this.searchterm)
     if ($event.key === "Enter") {
       this.getEmailsWithTerm();
-      this.allEmails = [
-        { fileId: 1, emailBody: 'Don’t forget our meeting at 3 PM today.' },
-        { fileId: 2, emailBody: 'Hey! Are we still up for the trip this weekend?' },
-        { fileId: 3, emailBody: 'Your invoice for this month is attached.' },
-        { fileId: 4, emailBody: 'Check out our latest updates and news.' }
-      ];
+      this.allEmails = [ ];
     }
   }
 
   async getEmailsWithTerm() {
     try {
       console.log(this.searchterm);
-      const observable = this.http.get<ResponseDto<Email[]>>(environment.baseUrl + '/email/search' + this.searchterm);
+      const observable = this.http.get<ResponseDto<Email[]>>(environment.baseUrl + '/getEmailSearch/' + this.searchterm);
       const response = await firstValueFrom(observable);
       if (response != null) {
         const data = response.responseData!;
@@ -45,7 +40,6 @@ export class HomePage {
           this.allEmails.push(item);
           console.log(item.emailBody)
         });
-
         console.log(this.allEmails);
       }
       //Reset the search criteria, if field is empty

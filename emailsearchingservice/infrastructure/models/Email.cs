@@ -2,6 +2,6 @@ namespace api.models;
 
 public class Email
 {
-    private int FileId { get; set; }
-    string EmailBody {get; set;}
+    public int FileId { get; set; }
+    public string EmailBody {get; set;}
 }
