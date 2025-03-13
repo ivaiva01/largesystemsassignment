@@ -1,0 +1,7 @@
+{
+  "name": "emailsearchingfrontend",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}
