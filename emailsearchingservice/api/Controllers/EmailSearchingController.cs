@@ -19,6 +19,7 @@ public class EmailSearchingController : ControllerBase
     [Route("/getEmailSearch/{searchTerm}")]
     public async Task<ResponseDto> GetEmailSearch(string searchTerm)
     {
+        Console.WriteLine("GetEmailSearch");
         List<Email> allLayerElements;
         allLayerElements = await _searchingService.GetEmailsWithSerarchterm(searchTerm);
 
