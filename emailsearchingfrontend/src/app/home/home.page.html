@@ -18,6 +18,7 @@
     <ion-input [(ngModel)]="searchterm" placeholder="Search for email content" style="border: 2px solid black; border-radius: 15px; margin: 5px"
                (keydown)="onKeydown($event)">
     </ion-input>
+    <ion-button (click)="getEmailsWithTerm()" style="margin: 5px">Search</ion-button>
   </div>
 
   <div id="container">

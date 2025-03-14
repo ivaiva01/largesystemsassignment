@@ -24,12 +24,12 @@ export class HomePage {
     console.log(this.searchterm)
     if ($event.key === "Enter") {
       this.getEmailsWithTerm();
-      this.allEmails = [ ];
     }
   }
 
   async getEmailsWithTerm() {
     try {
+      this.allEmails = [];
       console.log(this.searchterm);
       const observable = this.http.get<ResponseDto<Email[]>>(environment.baseUrl + '/getEmailSearch/' + this.searchterm);
       const response = await firstValueFrom(observable);
