@@ -13,7 +13,7 @@ string messageQueName = "searchQue";
 await channel.QueueDeclareAsync(
     queue: messageQueName, 
     //durable: true,                      //This means, that even if the server stops, the que or messages will not be lost
-    exclusive: false, 
+    exclusive: false,
     autoDelete: false,
     arguments: null);
     
