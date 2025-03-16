@@ -21,7 +21,7 @@ public class SearchingRepo
         string message = "Get all emails, with the search term: " + searchTerm;
         List<Email> emails = GetTextData();
         
-        // Create a composite object (message + TestObj) to send
+        // Create an object (message + TestObj) to send to database service
         var combinedMessage = new
         {
             Message = message,
