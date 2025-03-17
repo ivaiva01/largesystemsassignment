@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿using System.Diagnostics.Metrics;
 using Application;
 using indexer.dto;
 using Infrastructure;
@@ -22,6 +22,13 @@ if (rabbitMqSettings == null)
 {
     throw new ArgumentNullException("RabbitMqSettings");
 }
+
+var meter = new Meter("IndexingService", "1.0");
+builder.Services.AddSingleton(meter);
+
+builder.Services.AddSingleton<ITracingService, TracingService>();
+
+
 builder.Services.AddSingleton(rabbitMqSettings);
 
 builder.Configuration.AddEnvironmentVariables();
