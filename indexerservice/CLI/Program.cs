@@ -39,8 +39,6 @@ using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
 
 var publisher = services.GetRequiredService<IMessagePublisher>();
-var processor = services.GetRequiredService<IMessageProcessor>();
-var consumer = services.GetRequiredService<IMessageConsumer>();
 
 var testMessage = new MessageDto<EmailDto>
 {
