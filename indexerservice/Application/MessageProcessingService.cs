@@ -4,13 +4,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Application;
 
-public class RabbitMqBackgroundService : BackgroundService
+public class MessageProcessingService : BackgroundService
 {
     private readonly IMessageConsumer _consumer;
     private readonly IMessageProcessor _handler;
-    private readonly ILogger<RabbitMqBackgroundService> _logger;
+    private readonly ILogger<MessageProcessingService> _logger;
 
-    public RabbitMqBackgroundService(IMessageConsumer consumer, IMessageProcessor handler, ILogger<RabbitMqBackgroundService> logger)
+    public MessageProcessingService(IMessageConsumer consumer, IMessageProcessor handler, ILogger<MessageProcessingService> logger)
     {
         _consumer = consumer;
         _handler = handler;

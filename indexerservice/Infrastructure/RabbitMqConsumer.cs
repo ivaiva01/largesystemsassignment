@@ -2,7 +2,6 @@
 using System.Text.Json;
 using Application;
 using indexer.dto;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -16,68 +15,85 @@ public class RabbitMqConsumer : IMessageConsumer, IDisposable
     private readonly string _queueName;
     private readonly ILogger<RabbitMqConsumer> _logger;
 
-    public RabbitMqConsumer(IConfiguration configuration, ILogger<RabbitMqConsumer> logger)
+    public RabbitMqConsumer(RabbitMqSettings settings, ILogger<RabbitMqConsumer> logger)
     {
         _logger = logger;
         var factory = new ConnectionFactory
         {
-            HostName = configuration["RabbitMq:Host"] ?? throw new ArgumentNullException("RabbitMq:Host"),
-            Port = int.Parse(configuration["RabbitMq:Port"] ?? throw new ArgumentNullException("RabbitMq:Port")),
-            UserName = configuration["RabbitMq:Username"] ?? throw new ArgumentNullException("RabbitMq:Username"),
-            Password = configuration["RabbitMq:Password"] ?? throw new ArgumentNullException("RabbitMq:Password")
+            HostName = settings.Host,
+            Port = settings.Port,
+            UserName = settings.Username,
+            Password = settings.Password
         };
-        
-        _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
-        _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
-        _queueName = configuration["RabbitMq:QueueName"] ?? throw new ArgumentNullException("RabbitMq:QueueName");
-        
-        var exchangeName = configuration["RabbitMq:ExchangeName"] ?? throw new ArgumentNullException("RabbitMq:ExchangeName");
 
-        _channel.ExchangeDeclareAsync(exchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
-            .GetAwaiter().GetResult();
-        _channel.QueueDeclareAsync(queue: _queueName, durable: false, exclusive: false, autoDelete: false, arguments: null)
-            .GetAwaiter().GetResult();
-        
-        _channel.QueueBindAsync(
-            queue: _queueName,
-            exchange: exchangeName,
-            routingKey: "EmailDto" // TOODO: Fix hardcoding
-        ).GetAwaiter().GetResult();
+        try
+        {
+            _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
+            _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
+            _queueName = settings.QueueName;
+            _logger.LogInformation("RabbitMQ consumer connected successfully.");
+
+            if (!string.IsNullOrWhiteSpace(settings.ExchangeName))
+            {
+                _channel.ExchangeDeclareAsync(settings.ExchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
+                    .GetAwaiter().GetResult();
+                _logger.LogInformation("Exchange {ExchangeName} declared.", settings.ExchangeName);
+            }
+
+            _channel.QueueDeclareAsync(_queueName, durable: false, exclusive: false, autoDelete: false, arguments: null)
+                .GetAwaiter().GetResult();
+            _logger.LogInformation("Queue {QueueName} declared.", _queueName);
+
+            foreach (var key in settings.RoutingKeys)
+            {
+                _channel.QueueBindAsync(_queueName, settings.ExchangeName, key)
+                    .GetAwaiter().GetResult();
+                _logger.LogInformation("Queue {QueueName} bound to exchange {ExchangeName} with routing key {RoutingKey}.",
+                    _queueName, settings.ExchangeName, key);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to establish RabbitMQ consumer connection.");
+            throw;
+        }
     }
-    
-    
 
     public async Task<MessageDto<T>> ConsumeAsync<T>(CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource<MessageDto<T>>();
-        
         var consumer = new AsyncEventingBasicConsumer(_channel);
+
         consumer.ReceivedAsync += async (model, ea) =>
         {
+            var body = ea.Body.ToArray();
+            var json = Encoding.UTF8.GetString(body);
+
+            _logger.LogInformation("Received message from queue {QueueName}: {Message}", _queueName, json);
+
             try
             {
-                var body = ea.Body.ToArray();
-                var json = Encoding.UTF8.GetString(body);
                 var message = JsonSerializer.Deserialize<MessageDto<T>>(json);
-
                 await _channel.BasicAckAsync(ea.DeliveryTag, false, cancellationToken);
-                tcs.SetResult(message);
+                _logger.LogInformation("Message successfully processed and acknowledged.");
+                tcs.TrySetResult(message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing message.");
-                tcs.SetException(ex);
+                _logger.LogError(ex, "Error processing message: {Message}", json);
+                tcs.TrySetException(ex);
             }
         };
-        
+
         await _channel.BasicConsumeAsync(_queueName, false, consumer, cancellationToken: cancellationToken);
-        
         return await tcs.Task;
     }
-    
+
     public void Dispose()
     {
+        _logger.LogInformation("Disposing RabbitMQ consumer.");
         _channel?.Dispose();
         _connection?.Dispose();
     }
 }
+

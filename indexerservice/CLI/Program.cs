@@ -17,14 +17,20 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilog();
 
-builder.Configuration.AddJsonFile("appsettings.json");
+var rabbitMqSettings = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqSettings>();
+if (rabbitMqSettings == null)
+{
+    throw new ArgumentNullException("RabbitMqSettings");
+}
+builder.Services.AddSingleton(rabbitMqSettings);
+
 builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddSingleton<IMessageConsumer, RabbitMqConsumer>();
 builder.Services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
 
 builder.Services.AddSingleton<IMessageProcessor, MessageProcessor>();
-builder.Services.AddHostedService<RabbitMqBackgroundService>();
+builder.Services.AddHostedService<MessageProcessingService>();
 
 var app = builder.Build();
 
@@ -38,7 +44,7 @@ var consumer = services.GetRequiredService<IMessageConsumer>();
 
 var testMessage = new MessageDto<EmailDto>
 {
-    Id = Guid.NewGuid(),
+    Id = Guid.NewGuid().ToString(),
     Timestamp = DateTime.UtcNow,
     Content = new EmailDto
     {
@@ -51,9 +57,5 @@ var testMessage = new MessageDto<EmailDto>
 
 Console.WriteLine("Publishing a message");
 await publisher.PublishAsync(testMessage, CancellationToken.None);
-var receivedMsg = await consumer.ConsumeAsync<EmailDto>(CancellationToken.None);
-Console.WriteLine($"Received message: {receivedMsg.Id}, {receivedMsg.Content.Body}, {receivedMsg.Content.FileName}");
-
-await processor.ProcessMessageAsync(receivedMsg);
 
 await app.RunAsync();
