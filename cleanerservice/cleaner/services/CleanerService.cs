@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using RabbitMQ.Client;
 
 namespace cleaner.services
@@ -9,28 +11,46 @@ namespace cleaner.services
         private readonly IChannel _channel;
         private readonly IConnection _connection;
         private const string QueueName = "email_bodies_queue";
+        private readonly string _exchangeName;
 
-        private CleanerService(IConnection connection, IChannel channel)
+        private CleanerService(IConnection connection, IChannel channel, string exchangeName)
         {
             _connection = connection;
             _channel = channel;
+            _exchangeName = exchangeName;
         }
-
-        public static async Task<CleanerService> CreateAsync()
+        
+        public static async Task<CleanerService> CreateAsync(string exchangeName = "")
         {
             var factory = new ConnectionFactory() { HostName = "localhost" };
-            var connection = await factory.CreateConnectionAsync();
-            var channel = await connection.CreateChannelAsync();
+            IConnection connection = null;
+            IChannel channel = null;
 
-            await channel.QueueDeclareAsync(queue: QueueName,
-                durable: false,
-                exclusive: false,
-                autoDelete: false,
-                arguments: null);
+            try
+            {
+                connection = await factory.CreateConnectionAsync();
+                channel = await connection.CreateChannelAsync();
 
-            return new CleanerService(connection, channel);
+                if (!string.IsNullOrWhiteSpace(exchangeName))
+                {
+                    await channel.ExchangeDeclareAsync(exchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null);
+                }
+                
+                await channel.QueueDeclareAsync(queue: QueueName,
+                    durable: false,
+                    exclusive: false,
+                    autoDelete: false,
+                    arguments: null);
+
+                return new CleanerService(connection, channel, exchangeName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating connection or channel: {ex.Message}");
+                throw; 
+            }
         }
-
+        
         public string ExtractBody(string fileContent)
         {
             string[] lines = fileContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
@@ -51,29 +71,45 @@ namespace cleaner.services
             }
             return emailBody.Trim();
         }
-
-        public async Task SendToQueue(string emailBody)
+        
+        public async Task SendToQueueAsync(string emailBody, CancellationToken cancellationToken)
         {
             var body = Encoding.UTF8.GetBytes(emailBody);
             try
             {
-                await _channel.BasicPublishAsync(exchange: string.Empty,
-                    routingKey: QueueName,
+                string exchange = string.IsNullOrWhiteSpace(_exchangeName) ? "" : _exchangeName;
+                string routingKey = QueueName;
+
+                await _channel.BasicPublishAsync(
+                    exchange: exchange,
+                    routingKey: routingKey,
+                    mandatory: true,
                     body: body,
-                    basicProperties: null,
-                    mandatory: true);
+                    cancellationToken: cancellationToken);
+
+                Console.WriteLine($"[x] Sent: {emailBody}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine($"Error sending message to queue: {ex.Message}");
             }
-            Console.WriteLine($"[x] Sent: {emailBody}");
         }
-
+        
+        public async Task DisposeAsync()
+        {
+            if (_channel != null)
+            {
+                await _channel.CloseAsync();
+            }
+            if (_connection != null)
+            {
+                await _connection.CloseAsync();
+            }
+        }
+        
         public void Dispose()
         {
-            _channel?.CloseAsync();
-            _connection?.CloseAsync();
+            DisposeAsync().GetAwaiter().GetResult();
         }
     }
 }
