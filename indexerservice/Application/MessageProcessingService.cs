@@ -23,8 +23,8 @@ public class MessageProcessingService : BackgroundService
         {
             try
             {
-                var message = await _consumer.ConsumeAsync<MessageDto<EmailDto>>(stoppingToken);
-                await _handler.ProcessMessageAsync(message.Content);
+                var message = await _consumer.ConsumeAsync<EmailDto>(stoppingToken);
+                await _handler.ProcessMessageAsync(message);
             }
             catch (Exception ex)
             {

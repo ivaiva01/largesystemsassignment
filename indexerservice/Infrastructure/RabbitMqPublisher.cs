@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics.Metrics;
+using System.Text;
 using System.Text.Json;
 using Application;
 using indexer.dto;
@@ -8,17 +9,20 @@ using RabbitMQ.Client;
 
 public class RabbitMqPublisher : IMessagePublisher, IDisposable
 {
+    private readonly ILogger<RabbitMqPublisher> _logger;
+    private readonly Counter<int> _publishedMessagesCounter;
     private readonly IConnection _connection;
     private readonly IChannel _channel;
     private readonly string _exchangeName;
-    private readonly ILogger<RabbitMqPublisher> _logger;
     private readonly RabbitMqSettings _settings;
 
-    public RabbitMqPublisher(RabbitMqSettings settings, ILogger<RabbitMqPublisher> logger)
+    public RabbitMqPublisher(RabbitMqSettings settings, ILogger<RabbitMqPublisher> logger, Meter meter)
     {
         _logger = logger;
         _settings = settings;
         _exchangeName = settings.ExchangeName;
+        
+        _publishedMessagesCounter = meter.CreateCounter<int>("published_messages", "messages", "Total messages published");
 
         var factory = new ConnectionFactory
         {
@@ -28,31 +32,16 @@ public class RabbitMqPublisher : IMessagePublisher, IDisposable
             Password = settings.Password
         };
 
-        try
-        {
-            _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
-            _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
-            _logger.LogInformation("RabbitMQ connection established successfully.");
+        _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
+        _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
+        _logger.LogInformation("RabbitMQ publisher connected.");
 
-            if (!string.IsNullOrWhiteSpace(_exchangeName))
-            {
-                _channel.ExchangeDeclareAsync(_exchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
-                    .GetAwaiter().GetResult();
-                _logger.LogInformation("Exchange {ExchangeName} declared successfully.", _exchangeName);
-            }
-        }
-        catch (Exception ex)
+        if (!string.IsNullOrWhiteSpace(_exchangeName))
         {
-            _logger.LogError(ex, "Failed to establish RabbitMQ connection.");
-            throw;
+            _channel.ExchangeDeclareAsync(_exchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
+                .GetAwaiter().GetResult();
+            _logger.LogInformation("Exchange {ExchangeName} declared successfully.", _exchangeName);
         }
-
-        _channel.BasicReturnAsync += async (sender, ea) =>
-        {
-            var returnedMessage = ea.Body.Length > 0 ? Encoding.UTF8.GetString(ea.Body.ToArray()) : "(empty message)";
-            _logger.LogWarning("Message returned: {Message}, Reason: {ReplyText}", returnedMessage, ea.ReplyText);
-            await Task.CompletedTask;
-        };
     }
 
     public async Task PublishAsync<T>(MessageDto<T> message, CancellationToken cancellationToken)
@@ -70,6 +59,9 @@ public class RabbitMqPublisher : IMessagePublisher, IDisposable
                 exchange, routingKey, json);
 
             await _channel.BasicPublishAsync(exchange, routingKey, true, properties, body, cancellationToken);
+            
+            _publishedMessagesCounter.Add(1);
+
             _logger.LogInformation("Message published successfully.");
         }
         catch (Exception ex)
