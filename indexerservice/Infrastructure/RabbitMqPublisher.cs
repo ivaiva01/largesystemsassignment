@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Application;
 using indexer.dto;
+using Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
@@ -12,20 +13,23 @@ public class RabbitMqPublisher : IMessagePublisher, IDisposable
     private readonly IChannel _channel;
     private readonly string _exchangeName;
     private readonly ILogger<RabbitMqPublisher> _logger;
+    private readonly RabbitMqSettings _settings;
 
-    public RabbitMqPublisher(IConfiguration configuration, ILogger<RabbitMqPublisher> logger)
+    public RabbitMqPublisher(RabbitMqSettings settings, ILogger<RabbitMqPublisher> logger)
     {
         _logger = logger;
+        _settings = settings;
+        _exchangeName = settings.ExchangeName;
         
         var factory = new ConnectionFactory
         {
-            HostName = configuration["RabbitMq:Host"] ?? throw new ArgumentNullException("RabbitMq:Host"),
-            Port = int.Parse(configuration["RabbitMq:Port"] ?? throw new ArgumentNullException("RabbitMq:Port")),
-            UserName = configuration["RabbitMq:Username"] ?? throw new ArgumentNullException("RabbitMq:Username"),
-            Password = configuration["RabbitMq:Password"] ?? throw new ArgumentNullException("RabbitMq:Password")
+            HostName = settings.Host,
+            Port = settings.Port,
+            UserName = settings.Username,
+            Password = settings.Password
         };
         
-        _exchangeName = configuration["RabbitMq:ExchangeName"] ?? throw new ArgumentNullException("RabbitMq:ExchangeName");
+        _exchangeName = settings.ExchangeName;
         
         _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
         _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();

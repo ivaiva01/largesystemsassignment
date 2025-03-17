@@ -17,7 +17,13 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilog();
 
-builder.Configuration.AddJsonFile("appsettings.json");
+var rabbitMqSettings = builder.Configuration.GetSection("RabbitMq").Get<RabbitMqSettings>();
+if (rabbitMqSettings == null)
+{
+    throw new ArgumentNullException("RabbitMqSettings");
+}
+builder.Services.AddSingleton(rabbitMqSettings);
+
 builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddSingleton<IMessageConsumer, RabbitMqConsumer>();

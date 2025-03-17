@@ -16,33 +16,31 @@ public class RabbitMqConsumer : IMessageConsumer, IDisposable
     private readonly string _queueName;
     private readonly ILogger<RabbitMqConsumer> _logger;
 
-    public RabbitMqConsumer(IConfiguration configuration, ILogger<RabbitMqConsumer> logger)
+    public RabbitMqConsumer(RabbitMqSettings settings, ILogger<RabbitMqConsumer> logger)
     {
         _logger = logger;
         var factory = new ConnectionFactory
         {
-            HostName = configuration["RabbitMq:Host"] ?? throw new ArgumentNullException("RabbitMq:Host"),
-            Port = int.Parse(configuration["RabbitMq:Port"] ?? throw new ArgumentNullException("RabbitMq:Port")),
-            UserName = configuration["RabbitMq:Username"] ?? throw new ArgumentNullException("RabbitMq:Username"),
-            Password = configuration["RabbitMq:Password"] ?? throw new ArgumentNullException("RabbitMq:Password")
+            HostName = settings.Host,
+            Port = settings.Port,
+            UserName = settings.Username,
+            Password = settings.Password
         };
         
         _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
         _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
-        _queueName = configuration["RabbitMq:QueueName"] ?? throw new ArgumentNullException("RabbitMq:QueueName");
+        _queueName = settings.QueueName;
         
-        var exchangeName = configuration["RabbitMq:ExchangeName"] ?? throw new ArgumentNullException("RabbitMq:ExchangeName");
-
-        _channel.ExchangeDeclareAsync(exchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
+        _channel.ExchangeDeclareAsync(settings.ExchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
             .GetAwaiter().GetResult();
-        _channel.QueueDeclareAsync(queue: _queueName, durable: false, exclusive: false, autoDelete: false, arguments: null)
+        _channel.QueueDeclareAsync(_queueName, durable: false, exclusive: false, autoDelete: false, arguments: null)
             .GetAwaiter().GetResult();
         
-        _channel.QueueBindAsync(
-            queue: _queueName,
-            exchange: exchangeName,
-            routingKey: "EmailDto" // TOODO: Fix hardcoding
-        ).GetAwaiter().GetResult();
+        foreach (var key in settings.RoutingKeys)
+        {
+            _channel.QueueBindAsync(_queueName, settings.ExchangeName, key)
+                .GetAwaiter().GetResult();
+        }
     }
     
     
