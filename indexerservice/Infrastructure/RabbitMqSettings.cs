@@ -9,5 +9,5 @@ public class RabbitMqSettings
     public string Password { get; set; }
     public string ExchangeName { get; set; }
     public string QueueName { get; set; }
-    public List<string> RoutingKeys { get; set; } = [];
+    public List<string> RoutingKeys { get; set; } = new();
 }

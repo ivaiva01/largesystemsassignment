@@ -26,23 +26,36 @@ public class RabbitMqConsumer : IMessageConsumer, IDisposable
             Password = settings.Password
         };
 
-        _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
-        _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
-        _queueName = settings.QueueName;
-
-        if (!string.IsNullOrWhiteSpace(settings.ExchangeName))
+        try
         {
-            _channel.ExchangeDeclareAsync(settings.ExchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
+            _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
+            _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
+            _queueName = settings.QueueName;
+            _logger.LogInformation("RabbitMQ consumer connected successfully.");
+
+            if (!string.IsNullOrWhiteSpace(settings.ExchangeName))
+            {
+                _channel.ExchangeDeclareAsync(settings.ExchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
+                    .GetAwaiter().GetResult();
+                _logger.LogInformation("Exchange {ExchangeName} declared.", settings.ExchangeName);
+            }
+
+            _channel.QueueDeclareAsync(_queueName, durable: false, exclusive: false, autoDelete: false, arguments: null)
                 .GetAwaiter().GetResult();
+            _logger.LogInformation("Queue {QueueName} declared.", _queueName);
+
+            foreach (var key in settings.RoutingKeys)
+            {
+                _channel.QueueBindAsync(_queueName, settings.ExchangeName, key)
+                    .GetAwaiter().GetResult();
+                _logger.LogInformation("Queue {QueueName} bound to exchange {ExchangeName} with routing key {RoutingKey}.",
+                    _queueName, settings.ExchangeName, key);
+            }
         }
-
-        _channel.QueueDeclareAsync(_queueName, durable: false, exclusive: false, autoDelete: false, arguments: null)
-            .GetAwaiter().GetResult();
-
-        foreach (var key in settings.RoutingKeys)
+        catch (Exception ex)
         {
-            _channel.QueueBindAsync(_queueName, settings.ExchangeName, key)
-                .GetAwaiter().GetResult();
+            _logger.LogError(ex, "Failed to establish RabbitMQ consumer connection.");
+            throw;
         }
     }
 
@@ -53,32 +66,34 @@ public class RabbitMqConsumer : IMessageConsumer, IDisposable
 
         consumer.ReceivedAsync += async (model, ea) =>
         {
+            var body = ea.Body.ToArray();
+            var json = Encoding.UTF8.GetString(body);
+
+            _logger.LogInformation("Received message from queue {QueueName}: {Message}", _queueName, json);
+
             try
             {
-                var body = ea.Body.ToArray();
-                var json = Encoding.UTF8.GetString(body);
                 var message = JsonSerializer.Deserialize<MessageDto<T>>(json);
-
-                _logger.LogInformation("Received message: {Message}", json);
-
                 await _channel.BasicAckAsync(ea.DeliveryTag, false, cancellationToken);
+                _logger.LogInformation("Message successfully processed and acknowledged.");
                 tcs.TrySetResult(message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing message.");
+                _logger.LogError(ex, "Error processing message: {Message}", json);
                 tcs.TrySetException(ex);
             }
         };
 
         await _channel.BasicConsumeAsync(_queueName, false, consumer, cancellationToken: cancellationToken);
-
         return await tcs.Task;
     }
 
     public void Dispose()
     {
+        _logger.LogInformation("Disposing RabbitMQ consumer.");
         _channel?.Dispose();
         _connection?.Dispose();
     }
 }
+
