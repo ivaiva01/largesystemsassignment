@@ -31,8 +31,18 @@ public class RabbitMqConsumer : IMessageConsumer, IDisposable
         _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
         _queueName = configuration["RabbitMq:QueueName"] ?? throw new ArgumentNullException("RabbitMq:QueueName");
         
+        var exchangeName = configuration["RabbitMq:ExchangeName"] ?? throw new ArgumentNullException("RabbitMq:ExchangeName");
+
+        _channel.ExchangeDeclareAsync(exchangeName, ExchangeType.Direct, durable: true, autoDelete: false, arguments: null)
+            .GetAwaiter().GetResult();
         _channel.QueueDeclareAsync(queue: _queueName, durable: false, exclusive: false, autoDelete: false, arguments: null)
             .GetAwaiter().GetResult();
+        
+        _channel.QueueBindAsync(
+            queue: _queueName,
+            exchange: exchangeName,
+            routingKey: "EmailDto" // TOODO: Fix hardcoding
+        ).GetAwaiter().GetResult();
     }
     
     

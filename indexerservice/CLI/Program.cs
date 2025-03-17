@@ -1,4 +1,5 @@
-﻿using Application;
+﻿using System.Text;
+using Application;
 using indexer.dto;
 using Infrastructure;
 using Microsoft.Extensions.Configuration;
@@ -26,7 +27,7 @@ builder.Services.AddSingleton<IMessageProcessor, MessageProcessor>();
 builder.Services.AddHostedService<RabbitMqBackgroundService>();
 
 var app = builder.Build();
-app.Run();
+
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
@@ -39,5 +40,20 @@ var testMessage = new MessageDto<EmailDto>
 {
     Id = Guid.NewGuid(),
     Timestamp = DateTime.UtcNow,
-    Payload = new EmailDto { Subject = "Test Email", Body = "Hello, this is a test email!" }
+    Content = new EmailDto
+    {
+        Id = "1",
+        Body = "Hello, World!",
+        FileName = "test.txt",
+        FileBytes = "Hello, World!"u8.ToArray()
+    }
 };
+
+Console.WriteLine("Publishing a message");
+await publisher.PublishAsync(testMessage, CancellationToken.None);
+var receivedMsg = await consumer.ConsumeAsync<EmailDto>(CancellationToken.None);
+Console.WriteLine($"Received message: {receivedMsg.Id}, {receivedMsg.Content.Body}, {receivedMsg.Content.FileName}");
+
+await processor.ProcessMessageAsync(receivedMsg);
+
+await app.RunAsync();
