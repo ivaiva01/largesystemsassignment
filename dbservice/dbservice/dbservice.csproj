@@ -11,4 +11,12 @@
     <PackageReference Include="RabbitMQ.client" Version="7.1.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="dto\in\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\dbinfrastructure\dbinfrastructure.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -3,6 +3,24 @@
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
+using dbinfrastructure;
+using dbinfrastructure.models;
+
+string? _connectionString = Environment.GetEnvironmentVariable(EnvironmentVariables.dbconn.ToString());
+Console.WriteLine(_connectionString);
+var databaseRepo = new DatabaseRepo(_connectionString);
+//databaseRepo.AddWord("Hello");
+if (!databaseRepo.DoesWordExist("Amazing"))
+{
+    databaseRepo.AddWord("Amazing");
+}
+
+IEnumerable<Word> words = databaseRepo.GetAllWords(); // Call the method to fetch words
+
+foreach (var word in words)
+{
+    Console.WriteLine($"ID: {word.Word_id}, Word: {word.word}");
+}
 
 var factory = new ConnectionFactory { HostName = "localhost" };
 using var connection = await factory.CreateConnectionAsync();
@@ -11,8 +29,8 @@ using var channel = await connection.CreateChannelAsync();
 string messageQueName = "searchQue";
 
 await channel.QueueDeclareAsync(
-    queue: messageQueName, 
-    //durable: true,                      //This means, that even if the server stops, the que or messages will not be lost
+    queue: messageQueName,
+    //durable: true,                    //This means, that even if the server stops, the que or messages will not be lost
     exclusive: false,
     autoDelete: false,
     arguments: null);
